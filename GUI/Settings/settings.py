@@ -6,9 +6,10 @@ from GUI.Settings import themes
 from GUI.Utils import guiutils
 from tr.tr import get_locale
 from libpince import debugcore, utils, typedefs
+from libpince.libmemscan.memscan import ScanLevel
 import json, os
 
-current_settings_version = "37"  # Increase version by one if you change settings
+current_settings_version = "38"  # Increase version by one if you change settings
 CHECK_UPDATES_ON_STARTUP = "General/check_updates_on_startup"
 
 # Due to community feedback, these signals are disabled by default: SIGUSR1, SIGUSR2, SIGPWR, SIGXCPU, SIGXFSZ, SIGSYS
@@ -92,6 +93,19 @@ def init_settings() -> None:
         set_default_settings()
 
 
+DEFAULT_SCAN_TYPE_KEY = "Scan/default_scan_type"
+DEFAULT_VALUE_TYPE_KEY = "Scan/default_value_type"
+DEFAULT_SCAN_SCOPE_KEY = "Scan/default_scan_scope"
+DEFAULT_ENDIANNESS_KEY = "Scan/default_endianness"
+DEFAULT_ALIGNMENT_KEY = "Scan/default_alignment"
+
+DEFAULT_SCAN_TYPE = typedefs.SCAN_TYPE.EXACT
+DEFAULT_VALUE_TYPE = typedefs.SCAN_INDEX.INT32
+DEFAULT_SCAN_SCOPE = int(ScanLevel.HEAP_STACK_EXE_BSS)
+DEFAULT_ENDIANNESS = typedefs.ENDIANNESS.HOST
+DEFAULT_ALIGNMENT = 0
+
+
 # Please refrain from using python specific objects in settings, use json-compatible ones instead
 # Using python objects causes issues when filenames change
 def set_default_settings() -> None:
@@ -127,6 +141,13 @@ def set_default_settings() -> None:
     settings.endGroup()
     settings.beginGroup("Misc")
     settings.setValue("version", current_settings_version)
+    settings.endGroup()
+    settings.beginGroup("Scan")
+    settings.setValue("default_scan_type", DEFAULT_SCAN_TYPE)
+    settings.setValue("default_value_type", DEFAULT_VALUE_TYPE)
+    settings.setValue("default_scan_scope", DEFAULT_SCAN_SCOPE)
+    settings.setValue("default_endianness", DEFAULT_ENDIANNESS)
+    settings.setValue("default_alignment", DEFAULT_ALIGNMENT)
     settings.endGroup()
     apply_settings()
 

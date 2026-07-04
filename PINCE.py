@@ -132,7 +132,7 @@ from GUI.Widgets.TrackBreakpoint.TrackBreakpoint import TrackBreakpointWidget
 from GUI.Widgets.TrackSelector.TrackSelector import TrackSelectorDialog
 from GUI.Widgets.TrackWatchpoint.TrackWatchpoint import TrackWatchpointWidget
 from libpince import debugcore, linux_speedhack, monocore, scancore, typedefs, utils, wine_speedhack
-from libpince.libmemscan.memscan import DataType, MatchView, BytePattern
+from libpince.libmemscan.memscan import DataType, MatchView, BytePattern, ScanLevel
 from libpince.scancore import memscan
 from libpince.utils import logger, safe_str_to_int, safe_int_cast
 from tr.tr import TranslationConstants as tr
@@ -371,6 +371,7 @@ class MainForm(QMainWindow, MainWindow):
         self.lineEdit_Scan.keyPressEvent = self.lineEdit_Scan_on_key_press_event
         self.lineEdit_Scan2.keyPressEvent = self.lineEdit_Scan2_on_key_press_event
         self.comboBox_ScanType.currentIndexChanged.connect(self.comboBox_ScanType_current_index_changed)
+        self.apply_default_scan_parameters()
         self.comboBox_ScanType_current_index_changed()
         self.pushButton_Settings.clicked.connect(self.pushButton_Settings_clicked)
         self.pushButton_Console.clicked.connect(self.pushButton_Console_clicked)
@@ -1456,8 +1457,13 @@ class MainForm(QMainWindow, MainWindow):
         self.undo_scan_available = True
 
     def pushButton_ScanRegions_clicked(self) -> None:
-        scan_regions_dialog = ManageScanRegionsDialog(self)
-        if scan_regions_dialog.exec():
+        scan_regions_dialog = ManageScanRegionsDialog(self, self.scan_mode)
+        accepted = scan_regions_dialog.exec()
+        # A reset reloads every region and is a one-way action the dialog's Cancel can't undo, so drop the
+        # tracked deletions regardless of how the dialog was closed to keep them in sync with the scanner.
+        if scan_regions_dialog.regions_reset:
+            self.deleted_regions.clear()
+        if accepted:
             self.deleted_regions.extend(scan_regions_dialog.get_values())
 
     def get_value_index_for_match(self, match: MatchView) -> int:
@@ -2292,6 +2298,82 @@ class MainForm(QMainWindow, MainWindow):
         self.flashAttachButton_gradiantState += 1
         if self.flashAttachButton_gradiantState > 768:  # 32*24
             self.flashAttachButton_gradiantState = 0
+
+    def set_combobox_data(self, combobox, value, fallback) -> None:
+        index = combobox.findData(value)
+        if index < 0:
+            index = combobox.findData(fallback)
+
+        if index >= 0:
+            combobox.setCurrentIndex(index)
+
+    def apply_default_scan_parameters(self) -> None:
+        app_settings = QSettings()
+
+        value_type = app_settings.value(
+            settings.DEFAULT_VALUE_TYPE_KEY,
+            settings.DEFAULT_VALUE_TYPE,
+            type=int,
+        )
+
+        scan_type = app_settings.value(
+            settings.DEFAULT_SCAN_TYPE_KEY,
+            settings.DEFAULT_SCAN_TYPE,
+            type=int,
+        )
+
+        scope_value = app_settings.value(
+            settings.DEFAULT_SCAN_SCOPE_KEY,
+            settings.DEFAULT_SCAN_SCOPE,
+            type=int,
+        )
+
+        endianness = app_settings.value(
+            settings.DEFAULT_ENDIANNESS_KEY,
+            settings.DEFAULT_ENDIANNESS,
+            type=int,
+        )
+
+        alignment = app_settings.value(
+            settings.DEFAULT_ALIGNMENT_KEY,
+            settings.DEFAULT_ALIGNMENT,
+            type=int,
+        )
+
+        try:
+            scan_scope = ScanLevel(scope_value)
+        except ValueError:
+            scan_scope = ScanLevel(settings.DEFAULT_SCAN_SCOPE)
+
+        self.set_combobox_data(
+            self.comboBox_ValueType,
+            value_type,
+            settings.DEFAULT_VALUE_TYPE,
+        )
+
+        self.set_combobox_data(
+            self.comboBox_ScanScope,
+            scan_scope,
+            ScanLevel(settings.DEFAULT_SCAN_SCOPE),
+        )
+
+        self.set_combobox_data(
+            self.comboBox_Endianness,
+            endianness,
+            settings.DEFAULT_ENDIANNESS,
+        )
+
+        self.set_combobox_data(
+            self.comboBox_ScanType,
+            scan_type,
+            settings.DEFAULT_SCAN_TYPE,
+        )
+
+        self.set_combobox_data(
+            self.comboBox_Alignment,
+            alignment,
+            settings.DEFAULT_ALIGNMENT,
+        )
 
 
 class MemoryViewWindowForm(QMainWindow, MemoryViewWindow):

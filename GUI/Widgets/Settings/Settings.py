@@ -9,6 +9,7 @@ from GUI.Widgets.HandleSignals.HandleSignals import HandleSignalsDialog
 from tr.tr import TranslationConstants as tr
 from tr.tr import language_list
 from libpince import debugcore, utils, typedefs
+from libpince.libmemscan.memscan import ScanLevel
 from keyboard import KeyboardEvent, _pressed_events
 from keyboard._nixkeyboard import to_name
 import os, signal, json, re
@@ -41,6 +42,11 @@ class SettingsDialog(QDialog, Ui_Dialog):
             self.comboBox_Logo.addItem(QIcon(os.path.join(logo_directory, logo)), logo)
         for hotkey in states.hotkeys.get_hotkeys():
             self.listWidget_Functions.addItem(hotkey.desc)
+        for value_type, text in typedefs.scan_index_to_text_dict.items():
+            self.comboBox_DefaultValueType.addItem(text, value_type)
+        guiutils.fill_scope_combobox(self.comboBox_DefaultScanScope)
+        guiutils.fill_endianness_combobox(self.comboBox_DefaultEndianness)
+        guiutils.fill_alignment_combobox(self.comboBox_DefaultAlignment)
         self.config_gui()
 
         self.listWidget_Options.currentRowChanged.connect(self.change_display)
@@ -53,6 +59,7 @@ class SettingsDialog(QDialog, Ui_Dialog):
         self.comboBox_Logo.currentIndexChanged.connect(self.comboBox_Logo_current_index_changed)
         self.comboBox_Theme.currentIndexChanged.connect(self.comboBox_Theme_current_index_changed)
         self.pushButton_HandleSignals.clicked.connect(self.pushButton_HandleSignals_clicked)
+        self.comboBox_DefaultValueType.currentIndexChanged.connect(self.default_value_type_changed)
         self.lineEdit_Hotkey.keyPressEvent = self.lineEdit_Hotkey_key_pressed_event
         guiutils.center_to_parent(self)
 
@@ -100,6 +107,33 @@ class SettingsDialog(QDialog, Ui_Dialog):
         self.settings.setValue("Java/ignore_segfault", self.checkBox_JavaSegfault.isChecked())
         if self.handle_signals_data:
             self.settings.setValue("Debug/handle_signals", self.handle_signals_data)
+        self.settings.setValue(
+            settings.DEFAULT_VALUE_TYPE_KEY,
+            self.comboBox_DefaultValueType.currentData(Qt.ItemDataRole.UserRole),
+        )
+
+        self.settings.setValue(
+            settings.DEFAULT_SCAN_TYPE_KEY,
+            self.comboBox_DefaultScanType.currentData(Qt.ItemDataRole.UserRole),
+        )
+
+        scan_scope = self.comboBox_DefaultScanScope.currentData(Qt.ItemDataRole.UserRole)
+
+        self.settings.setValue(
+            settings.DEFAULT_SCAN_SCOPE_KEY,
+            scan_scope.value,
+        )
+
+        self.settings.setValue(
+            settings.DEFAULT_ENDIANNESS_KEY,
+            self.comboBox_DefaultEndianness.currentData(Qt.ItemDataRole.UserRole),
+        )
+
+        self.settings.setValue(
+            settings.DEFAULT_ALIGNMENT_KEY,
+            self.comboBox_DefaultAlignment.currentData(Qt.ItemDataRole.UserRole),
+        )
+
         settings.apply_settings()
         super().accept()
 
@@ -148,6 +182,64 @@ class SettingsDialog(QDialog, Ui_Dialog):
         self.checkBox_GDBLogging.setChecked(self.settings.value("Debug/gdb_logging", type=bool))
         self.comboBox_InterruptSignal.setCurrentText(self.settings.value("Debug/interrupt_signal", type=str))
         self.checkBox_JavaSegfault.setChecked(self.settings.value("Java/ignore_segfault", type=bool))
+        value_type = self.settings.value(
+            settings.DEFAULT_VALUE_TYPE_KEY,
+            settings.DEFAULT_VALUE_TYPE,
+            type=int,
+        )
+
+        value_type_index = self.comboBox_DefaultValueType.findData(value_type)
+
+        if value_type_index < 0:
+            value_type_index = self.comboBox_DefaultValueType.findData(settings.DEFAULT_VALUE_TYPE)
+
+        with QSignalBlocker(self.comboBox_DefaultValueType):
+            self.comboBox_DefaultValueType.setCurrentIndex(value_type_index)
+
+        scan_type = self.settings.value(
+            settings.DEFAULT_SCAN_TYPE_KEY,
+            settings.DEFAULT_SCAN_TYPE,
+            type=int,
+        )
+
+        self.fill_default_scan_type_combobox(scan_type)
+
+        scope_value = self.settings.value(
+            settings.DEFAULT_SCAN_SCOPE_KEY,
+            settings.DEFAULT_SCAN_SCOPE,
+            type=int,
+        )
+
+        try:
+            scan_scope = ScanLevel(scope_value)
+        except ValueError:
+            scan_scope = ScanLevel(settings.DEFAULT_SCAN_SCOPE)
+
+        scope_index = self.comboBox_DefaultScanScope.findData(scan_scope)
+
+        if scope_index >= 0:
+            self.comboBox_DefaultScanScope.setCurrentIndex(scope_index)
+
+        endianness = self.settings.value(
+            settings.DEFAULT_ENDIANNESS_KEY,
+            settings.DEFAULT_ENDIANNESS,
+            type=int,
+        )
+
+        endianness_index = self.comboBox_DefaultEndianness.findData(endianness)
+
+        if endianness_index >= 0:
+            self.comboBox_DefaultEndianness.setCurrentIndex(endianness_index)
+
+        alignment = self.settings.value(
+            settings.DEFAULT_ALIGNMENT_KEY,
+            settings.DEFAULT_ALIGNMENT,
+            type=int,
+        )
+
+        alignment_index = self.comboBox_DefaultAlignment.findData(alignment)
+
+        self.comboBox_DefaultAlignment.setCurrentIndex(alignment_index)
 
     def change_display(self, index: int) -> None:
         self.stackedWidget.setCurrentIndex(index)
@@ -235,3 +327,41 @@ class SettingsDialog(QDialog, Ui_Dialog):
             self.lineEdit_Hotkey.clear()
         else:
             self.hotkey_to_value[states.hotkeys.get_hotkeys()[index].name] = self.lineEdit_Hotkey.text()
+
+    def fill_default_scan_type_combobox(self, preferred_scan_type: int | None = None) -> None:
+        scan_type_text = {
+            typedefs.SCAN_TYPE.EXACT: tr.EXACT,
+            typedefs.SCAN_TYPE.NOT: tr.NOT,
+            typedefs.SCAN_TYPE.LESS: tr.LESS_THAN,
+            typedefs.SCAN_TYPE.MORE: tr.MORE_THAN,
+            typedefs.SCAN_TYPE.BETWEEN: tr.BETWEEN,
+            typedefs.SCAN_TYPE.UNKNOWN: tr.UNKNOWN_VALUE,
+        }
+
+        value_type = self.comboBox_DefaultValueType.currentData(Qt.ItemDataRole.UserRole)
+
+        if preferred_scan_type is None:
+            preferred_scan_type = self.comboBox_DefaultScanType.currentData(Qt.ItemDataRole.UserRole)
+
+        self.comboBox_DefaultScanType.clear()
+
+        valid_scan_types = typedefs.SCAN_TYPE.get_list(
+            typedefs.SCAN_MODE.NEW,
+            value_type,
+        )
+
+        for scan_type in valid_scan_types:
+            self.comboBox_DefaultScanType.addItem(
+                scan_type_text[scan_type],
+                scan_type,
+            )
+
+        index = self.comboBox_DefaultScanType.findData(preferred_scan_type)
+
+        if index < 0:
+            index = self.comboBox_DefaultScanType.findData(typedefs.SCAN_TYPE.EXACT)
+
+        self.comboBox_DefaultScanType.setCurrentIndex(index)
+
+    def default_value_type_changed(self) -> None:
+        self.fill_default_scan_type_combobox()

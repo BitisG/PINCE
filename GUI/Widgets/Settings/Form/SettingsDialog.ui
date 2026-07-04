@@ -39,6 +39,11 @@
          </item>
          <item>
           <property name="text">
+           <string>Scan</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
            <string>Hotkeys</string>
           </property>
          </item>
@@ -68,7 +73,7 @@
           </size>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="page_General">
           <layout class="QGridLayout" name="gridLayout_2">
@@ -374,6 +379,73 @@ Patterns at former positions have higher priority if regex is off</string>
               </spacer>
              </item>
             </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_Scan">
+          <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <widget class="QGroupBox" name="groupBox_DefaultScanParameters">
+             <property name="title">
+              <string>Default scan parameters</string>
+             </property>
+             <layout class="QFormLayout" name="formLayout_2">
+              <item row="0" column="0">
+               <layout class="QFormLayout" name="formLayout">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="label_DefaultValueType">
+                  <property name="text">
+                   <string>Value Type</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QComboBox" name="comboBox_DefaultValueType"/>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_DefaultScanType">
+                  <property name="text">
+                   <string>Scan Type</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QComboBox" name="comboBox_DefaultScanType"/>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_DefaultScanScope">
+                  <property name="text">
+                   <string>Scan Scope</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QComboBox" name="comboBox_DefaultScanScope"/>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="label_DefaultEndianness">
+                  <property name="text">
+                   <string>Endianness</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QComboBox" name="comboBox_DefaultEndianness"/>
+                </item>
+                <item row="4" column="0">
+                 <widget class="QLabel" name="label_DefaultAlignment">
+                  <property name="text">
+                   <string>Alignment</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="1">
+                 <widget class="QComboBox" name="comboBox_DefaultAlignment"/>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </widget>
            </item>
           </layout>
          </widget>
